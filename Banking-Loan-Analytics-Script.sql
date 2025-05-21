@@ -299,4 +299,141 @@ FROM
 -- Điều này cho biết thời gian dài nhất từ ​​khi nộp khoản vay đến khi phê duyệt trong tập dữ liệu.
 -- Hiểu được thời gian tối đa này có thể giúp xác định các nút thắt tiềm ẩn trong quy trình phê duyệt
 -- và đưa ra các chiến lược để cải thiện hiệu quả và sự hài lòng của khách hàng.
+--1. Tỷ lệ chấp thuận theo nhóm độ tuổi
+--Xem nhóm tuổi nào có tỷ lệ được duyệt vay cao nhất, từ đó tập trung chính sách hoặc chiến dịch phù hợp.
+SELECT 
+    CASE 
+        WHEN Age < 30 THEN '<30'
+        WHEN Age BETWEEN 30 AND 45 THEN '30-45'
+        WHEN Age BETWEEN 46 AND 60 THEN '46-60'
+        ELSE '>60'
+    END AS Age_Group,
+    COUNT(*) AS Total_Applicants,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) AS Approved_Count,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) * 100.0 / COUNT(*) AS Approval_Rate
+FROM combined_loan_data
+GROUP BY CASE 
+        WHEN Age < 30 THEN '<30'
+        WHEN Age BETWEEN 30 AND 45 THEN '30-45'
+        WHEN Age BETWEEN 46 AND 60 THEN '46-60'
+        ELSE '>60'
+    END
+ORDER BY Age_Group;
 
+--2. Tỷ lệ chấp thuận theo mức độ giáo dục (Education)
+--Hiểu xem trình độ học vấn có ảnh hưởng thế nào tới việc phê duyệt.
+SELECT 
+    Education,
+    COUNT(*) AS Total_Applicants,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) AS Approved_Count,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) * 100.0 / COUNT(*) AS Approval_Rate,
+    AVG(Income) AS Avg_Income_of_Group
+FROM combined_loan_data
+GROUP BY Education
+ORDER BY Education;
+--3. Tỷ lệ sử dụng tài khoản chứng khoán/CD tài khoản theo nhóm vay được duyệt
+--Xem xét việc khách hàng sở hữu tài khoản chứng khoán hay tài khoản tiết kiệm có ảnh hưởng tới quyết định duyệt vay hay không.
+
+SELECT 
+    [Securities_Account],
+    [CD_Account],
+    COUNT(*) AS Total_Applicants,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) AS Approved_Count,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) * 100.0 / COUNT(*) AS Approval_Rate
+FROM combined_loan_data
+GROUP BY [Securities_Account], [CD_Account]
+ORDER BY [Securities_Account], [CD_Account];
+
+--4. Ảnh hưởng của số lượng người trong gia đình (Family) đến tỷ lệ duyệt vay
+--Kiểm tra xem quy mô gia đình có tác động gì tới khả năng duyệt vay không.
+SELECT 
+    Family,
+    COUNT(*) AS Total_Applicants,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) AS Approved_Count,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) * 100.0 / COUNT(*) AS Approval_Rate,
+    AVG(Income) AS Avg_Income
+FROM combined_loan_data
+GROUP BY Family
+ORDER BY Family;
+
+--5. Phân tích ảnh hưởng của thời gian xử lý (Turnaround time) đến tỷ lệ chấp thuận
+--Xem có mối liên hệ giữa thời gian xử lý khoản vay và khả năng được duyệt hay không.
+
+SELECT 
+    CASE 
+        WHEN turnaround_time <= 24 THEN '0-24 hours'
+        WHEN turnaround_time BETWEEN 24 AND 72 THEN '24-72 hours'
+        WHEN turnaround_time BETWEEN 73 AND 168 THEN '3-7 days'
+        ELSE '>7 days'
+    END AS Processing_Time_Group,
+    COUNT(*) AS Total_Applications,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) AS Approved_Count,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) * 100.0 / COUNT(*) AS Approval_Rate,
+    AVG(Income) AS Avg_Income
+FROM combined_loan_data
+GROUP BY 
+    CASE 
+        WHEN turnaround_time <= 24 THEN '0-24 hours'
+        WHEN turnaround_time BETWEEN 24 AND 72 THEN '24-72 hours'
+        WHEN turnaround_time BETWEEN 73 AND 168 THEN '3-7 days'
+        ELSE '>7 days'
+    END
+ORDER BY Processing_Time_Group;
+
+--6. Tỷ lệ duyệt vay theo thu nhập (Income) phân đoạn
+--Xác định các ngưỡng thu nhập có ảnh hưởng rõ ràng đến phê duyệt khoản vay.
+SELECT 
+    CASE 
+        WHEN Income < 30 THEN '<30k'
+        WHEN Income BETWEEN 30 AND 70 THEN '30k-70k'
+        WHEN Income BETWEEN 71 AND 120 THEN '71k-120k'
+        ELSE '>120k'
+    END AS Income_Group,
+    COUNT(*) AS Total_Applicants,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) AS Approved_Count,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) * 100.0 / COUNT(*) AS Approval_Rate
+FROM combined_loan_data
+GROUP BY 
+    CASE 
+        WHEN Income < 30 THEN '<30k'
+        WHEN Income BETWEEN 30 AND 70 THEN '30k-70k'
+        WHEN Income BETWEEN 71 AND 120 THEN '71k-120k'
+        ELSE '>120k'
+    END
+ORDER BY Income_Group;
+
+--7. Tỷ lệ duyệt vay và điểm sử dụng thẻ tín dụng (CCAvg) phân đoạn
+--Đánh giá mức độ chi tiêu trên thẻ tín dụng ảnh hưởng tới khả năng được duyệt.
+SELECT 
+    CASE 
+        WHEN CCAvg < 100 THEN '<100'
+        WHEN CCAvg BETWEEN 100 AND 300 THEN '100-300'
+        ELSE '>300'
+    END AS CCAvg_Group,
+    COUNT(*) AS Total_Applicants,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) AS Approved_Count,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) * 100.0 / COUNT(*) AS Approval_Rate
+FROM combined_loan_data
+GROUP BY 
+    CASE 
+        WHEN CCAvg < 100 THEN '<100'
+        WHEN CCAvg BETWEEN 100 AND 300 THEN '100-300'
+        ELSE '>300'
+    END
+ORDER BY CCAvg_Group;
+
+--8. Phân tích mối quan hệ giữa việc sở hữu thẻ tín dụng (CreditCard) và khoản vay được duyệt
+
+SELECT
+    CreditCard,
+    COUNT(*) AS Total_Applicants,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) AS Approved_Count,
+    COUNT(CASE WHEN Personal_Loan = 1 THEN 1 END) * 100.0 / COUNT(*) AS Approval_Rate
+FROM combined_loan_data
+GROUP BY CreditCard
+ORDER BY CreditCard;
+
+--Tổng kết:
+--Những phân tích trên giúp khai thác dữ liệu sâu hơn về đặc điểm khách hàng, từ đó phân nhóm và phát hiện các yếu tố ảnh hưởng lớn tới việc phê duyệt vay.
+
+--Từ các insight này, ngân hàng có thể tinh chỉnh chính sách tín dụng, nhắm mục tiêu marketing, và cải thiện quy trình phê duyệt.
